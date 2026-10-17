@@ -1,5 +1,5 @@
 [project]
-name = "Anima Prompt Builder"
+name = "anima-prompt-builder"
 description = "Build Anima prompts from Danbooru tags right inside a node, and output them as positive / negative strings."
 version = "1.0.0"
 license = "MIT"
@@ -10,7 +10,7 @@ Repository = "https://github.com/shibadogday/anima-prompt-builder-comfy-node"
 
 [tool.comfy]
 PublisherId = "shibadogday"
-DisplayName = "ShibadogDay"
+DisplayName = "Anima Prompt Builder"
 Icon = ""
 includes = [] 
 # "requires-comfyui" = ">=1.0.0"  # ComfyUI version compatibility
