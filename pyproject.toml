@@ -1,7 +1,7 @@
 [project]
 name = "anima-prompt-builder"
 description = "Build Anima prompts from Danbooru tags right inside a node, and output them as positive / negative strings."
-version = "1.0.0"
+version = "1.0.1"
 license = "MIT"
 
 [project.urls]

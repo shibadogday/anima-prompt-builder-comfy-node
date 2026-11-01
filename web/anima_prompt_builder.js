@@ -1,3 +1,4 @@
+import { api } from "../../scripts/api.js";
 import { app } from "../../scripts/app.js";
 
 const NODE_CLASS_TYPE = "AnimaPromptBuilder";
@@ -8,6 +9,9 @@ const APP_MESSAGE_SOURCE = "anima-prompt-builder";
 const HOST_MESSAGE_SOURCE = "anima-prompt-builder-host";
 const MIN_WIDTH = 900;
 const MIN_HEIGHT = 640;
+const NODE_MODE_ALWAYS = 0;
+
+const builders = new Set();
 
 app.registerExtension({
   name: "AnimaPromptBuilder",
@@ -22,6 +26,9 @@ app.registerExtension({
       defaultValue: DEFAULT_URL,
     },
   ],
+  setup() {
+    api.addEventListener("promptQueued", notifyGenerate);
+  },
   async beforeRegisterNodeDef(nodeType, nodeData) {
     if (nodeData.name !== NODE_CLASS_TYPE) return;
     const onNodeCreated = nodeType.prototype.onNodeCreated;
@@ -41,6 +48,17 @@ function appUrl() {
   const url = new URL(text, window.location.href);
   url.searchParams.set("embed", "comfyui");
   return url;
+}
+
+function notifyGenerate(event) {
+  const count = event?.detail?.batchCount;
+  const batchCount = Number.isInteger(count) && count > 0 ? count : 1;
+  for (const builder of builders) {
+    if (builder.ready && builder.node.mode === NODE_MODE_ALWAYS) {
+      builder.post({ source: HOST_MESSAGE_SOURCE, type: "generate", batchCount });
+      return;
+    }
+  }
 }
 
 function setupNode(node) {
@@ -68,7 +86,14 @@ function setupNode(node) {
   container.append(toolbar, iframe);
 
   let url = appUrl();
+  const builder = {
+    node,
+    ready: false,
+    post: (message) => iframe.contentWindow?.postMessage(message, url.origin),
+  };
+  builders.add(builder);
   const load = () => {
+    builder.ready = false;
     url = appUrl();
     urlLabel.textContent = url.origin;
     iframe.src = url.href;
@@ -80,10 +105,8 @@ function setupNode(node) {
     if (typeof data !== "object" || data === null || data.source !== APP_MESSAGE_SOURCE) return;
     if (data.type === "ready") {
       const state = typeof stateWidget.value === "string" ? stateWidget.value : "";
-      iframe.contentWindow.postMessage(
-        { source: HOST_MESSAGE_SOURCE, type: "init", state },
-        url.origin,
-      );
+      builder.post({ source: HOST_MESSAGE_SOURCE, type: "init", state });
+      builder.ready = true;
     } else if (data.type === "change" && typeof data.state === "string") {
       if (stateWidget.value === data.state) return;
       stateWidget.value = data.state;
@@ -105,7 +128,10 @@ function setupNode(node) {
     hideOnZoom: false,
     getMinHeight: () => MIN_HEIGHT - 80,
   });
-  const cleanup = () => window.removeEventListener("message", onMessage);
+  const cleanup = () => {
+    window.removeEventListener("message", onMessage);
+    builders.delete(builder);
+  };
   const onRemove = widget.onRemove;
   widget.onRemove = function (...args) {
     cleanup();
